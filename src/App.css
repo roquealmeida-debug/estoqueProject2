@@ -1,7 +1,7 @@
 /* Estilos Globais */
 :root {
   --background-color: #ffffff;
-  --text-color: #333333;
+  --text-color: #000000;
   --form-background: #f4f4f4;
   --button-background: #007bff;
   --button-hover: #0056b3;
@@ -131,14 +131,6 @@ button:hover {
   color: var(--text-color);
 }
 
-#estoque tr {
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-#estoque tr:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
 
 /* Notificações */
 #notificacao-vencimento {
@@ -225,4 +217,77 @@ button:hover {
   #estoque {
       font-size: 0.9em;
   }
+}
+
+/* Estilos do Botão de Pesquisa */
+.search-button {
+  padding: 8px 12px; /* Ajusta o padding para um botão mais compacto */
+  background-color: var(--button-background); /* Usando a variável de cor */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px; /* Tamanho da fonte */
+  font-weight: bold;
+  transition: background-color 0.3s, transform 0.2s;
+  width: 100px; /* Define uma largura fixa para o botão */
+  margin-left: 10px; /* Adiciona espaço entre o campo de entrada e o botão */
+}
+
+.search-button:hover {
+  background-color: var(--button-hover); /* Usando a variável de cor para hover */
+  transform: translateY(-2px);
+}
+
+/* Estilos do Campo de Pesquisa */
+.search-input {
+  flex: 1;
+  max-width: 300px; /* Limita a largura do campo de entrada */
+  padding: 10px; /* Adiciona padding para um melhor espaçamento interno */
+  border: 1px solid var(--input-border-color); /* Borda do campo */
+  border-radius: 6px; /* Bordas arredondadas */
+  font-size: 14px; /* Tamanho da fonte */
+  color: var(--text-color); /* Cor do texto */
+  background-color: var(--input-background); /* Cor de fundo */
+  transition: border-color 0.3s; /* Transição suave para a borda */
+}
+
+.search-input:focus {
+  border-color: var(--button-background); /* Muda a cor da borda ao focar */
+  outline: none; /* Remove o contorno padrão */
+}
+
+/* Estilos do Botão de Importação */
+.import-button {
+  padding: 8px 12px; /* Ajusta o padding para um botão mais compacto */
+  background-color: var(--button-background); /* Usando a variável de cor */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px; /* Tamanho da fonte */
+  font-weight: bold;
+  transition: background-color 0.3s, transform 0.2s;
+  width: 200px; /* Define uma largura fixa para o botão */
+  text-align: center; /* Centraliza o texto */
+  display: inline-block; /* Para que o padding e a largura funcionem corretamente */
+}
+
+.import-button:hover {
+  background-color: var(--button-hover); /* Usando a variável de cor para hover */
+  transform: translateY(-2px);
+}
+
+.error {
+  color: red;
+  font-size: 12px;
+  margin-top: -15px;
+  margin-bottom: 10px;
+}
+
+.loading-indicator {
+  text-align: center;
+  font-size: 16px;
+  color: #007bff; /* Cor do texto */
+  margin: 20px 0; /* Margem para espaçamento */
 }

@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { jsPDF } from 'jspdf';
+import { jsPDF } from 'jspdf'; // Importa apenas o jsPDF
+import 'jspdf-autotable'; // Importa a extensão para tabelas
 
-const MedicamentoForm = () => {
+const MedicamentoForm = React.memo(() => {
   const [nome, setNome] = useState('');
   const [laboratorio, setLaboratorio] = useState('');
   const [tipoServico, setTipoServico] = useState('');
-  const [tipoMedicamento, setTipoMedicamento] = useState(''); // Inicializado como string vazia
+  const [tipoMedicamento, setTipoMedicamento] = useState('');
   const [lote, setLote] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [dataValidade, setDataValidade] = useState('');
-  const [valor, setValor] = useState(''); // Armazenar como string para formatação
+  const [valor, setValor] = useState('');
   const [medicamentos, setMedicamentos] = useState([]);
-  const [editIndex, setEditIndex] = useState(null); // Índice do medicamento a ser editado
+  const [editIndex, setEditIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  // Carregar medicamentos do localStorage ao iniciar o componente
   useEffect(() => {
     const storedMedicamentos = localStorage.getItem('medicamentos');
     if (storedMedicamentos) {
@@ -23,37 +26,27 @@ const MedicamentoForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // Adicione logs para verificar os valores dos campos
-    console.log('Nome:', nome);
-    console.log('Laboratório:', laboratorio);
-    console.log('Tipo de Serviço:', tipoServico);
-    console.log('Tipo de Medicamento:', tipoMedicamento);
-    console.log('Lote:', lote);
-    console.log('Quantidade:', quantidade);
-    console.log('Data de Validade:', dataValidade);
-    console.log('Valor:', valor);
+    
+    if (!validateForm()) {
+      return; // Não prossegue se houver erros
+    }
 
     const medicamento = {
-        nome: nome.toUpperCase(),
-        laboratorio: laboratorio.toUpperCase(),
-        tipoServico: tipoServico.toUpperCase(),
-        tipoMedicamento: tipoMedicamento.toUpperCase(), // Certifique-se de que este campo está presente
-        lotes: [{ 
-            lote: lote.toUpperCase(), 
-            quantidade, 
-            dataValidade, 
-            valor: parseFloat(valor.replace(/\./g, '').replace(',', '.')) 
-        }], // Converter para número
+      nome: nome.toUpperCase(),
+      laboratorio: laboratorio.toUpperCase(),
+      tipoServico: tipoServico.toUpperCase(),
+      tipoMedicamento: tipoMedicamento.toUpperCase(),
+      lotes: [{ 
+        lote: lote.toUpperCase(), 
+        quantidade, 
+        dataValidade, 
+        valor: parseFloat(valor.replace(/\./g, '').replace(',', '.')) 
+      }],
     };
-    console.log('Medicamento a ser salvo:', medicamento);
-
-    // Verifique se os campos estão preenchidos corretamente
-    console.log('Medicamento:', medicamento);
 
     const updatedMedicamentos = editIndex !== null 
-        ? medicamentos.map((med, index) => (index === editIndex ? medicamento : med)) 
-        : [...medicamentos, medicamento];
+      ? medicamentos.map((med, index) => (index === editIndex ? medicamento : med)) 
+      : [...medicamentos, medicamento];
 
     setMedicamentos(updatedMedicamentos);
     localStorage.setItem('medicamentos', JSON.stringify(updatedMedicamentos));
@@ -68,18 +61,16 @@ const MedicamentoForm = () => {
     setLote('');
     setQuantidade('');
     setDataValidade('');
-    setValor(''); // Resetar valor
-    setEditIndex(null); // Resetar o índice de edição
+    setValor('');
+    setEditIndex(null);
   };
 
   const handleValueChange = (e) => {
     const inputValue = e.target.value;
-    // Remove caracteres não numéricos
     const numericValue = inputValue.replace(/\D/g, '');
-    // Formata como moeda
-    const formattedValue = formatCurrency(numericValue / 100); // Divide por 100 para formatar corretamente
-    setValor(numericValue); // Armazenar o valor numérico
-    e.target.value = formattedValue; // Atualiza o campo de entrada com o valor formatado
+    const formattedValue = formatCurrency(numericValue / 100);
+    setValor(numericValue);
+    e.target.value = formattedValue;
   };
 
   const formatCurrency = (value) => {
@@ -98,54 +89,80 @@ const MedicamentoForm = () => {
     setLote(medicamento.lotes[0].lote);
     setQuantidade(medicamento.lotes[0].quantidade);
     setDataValidade(medicamento.lotes[0].dataValidade);
-    setValor(formatCurrency(medicamento.lotes[0].valor)); // Formata o valor para exibição
-    setEditIndex(index); // Definir o índice de edição
+    setValor(formatCurrency(medicamento.lotes[0].valor));
+    setEditIndex(index);
   };
 
   const handleDelete = (index) => {
-    const updatedMedicamentos = medicamentos.filter((_, i) => i !== index);
-    setMedicamentos(updatedMedicamentos);
-    localStorage.setItem('medicamentos', JSON.stringify(updatedMedicamentos));
+    const confirmDelete = window.confirm("Tem certeza que deseja excluir este medicamento?");
+    if (confirmDelete) {
+      const updatedMedicamentos = medicamentos.filter((_, i) => i !== index);
+      setMedicamentos(updatedMedicamentos);
+      localStorage.setItem('medicamentos', JSON.stringify(updatedMedicamentos));
+    }
   };
 
-  const exportToJSON = () => {
-    const json = JSON.stringify(medicamentos, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+  const exportJSON = () => {
+    setLoading(true); // Inicia o carregamento
+    const dataStr = JSON.stringify(medicamentos, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'medicamentos.json';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setLoading(false); // Finaliza o carregamento
   };
-  const exportToPDF = async () => {
+
+  const importJSON = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      alert("Por favor, selecione um arquivo.");
+      return;
+    }
+    
+    setLoading(true); // Inicia o carregamento
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        setMedicamentos(data);
+        localStorage.setItem('medicamentos', JSON.stringify(data)); // Salva os medicamentos importados no localStorage
+      } catch (error) {
+        alert("Erro ao importar JSON. Verifique o formato do arquivo.");
+      } finally {
+        setLoading(false); // Finaliza o carregamento
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const exportToPDF = () => {
     const estoque = JSON.parse(localStorage.getItem('medicamentos')) || [];
     const doc = new jsPDF();
 
-    // Definir larguras fixas para cada coluna
-    const colWidths = {
-        lote: 20,
-        validade: 30,
-        tipoServico: 25,
-        tipoMedicamento: 30,
-        quantidade: 20,
-        valor: 30,
-        laboratorio: 40,
-    };
+    // Definir margens verticais
+    const topMargin = 20; // Margem superior
+    const bottomMargin = 20; // Margem inferior
 
-    let y = 20; // Posição inicial Y
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const leftMargin = 10; // Margem esquerda
+    let y = topMargin; // Posição inicial Y com margem
+    const pageWidth = doc.internal.pageSize.getWidth(); // Largura total da página
 
-    // Títulos
-    doc.setFontSize(10);
-    doc.text('Controle de Estoque de Medicamentos', pageWidth / 2, y, { align: 'center' });
-    y += 6; // Espaço reduzido após o título
-    doc.setFontSize(9);
-    doc.text(`Data: ${new Date().toLocaleDateString()}`, pageWidth / 2, y, { align: 'center' });
-    y += 10; // Espaço após a data
+    // Agrupar medicamentos por nome
+    const groupedMedicamentos = estoque.reduce((acc, medicamento) => {
+        const existing = acc.find(med => med.nome === medicamento.nome);
+        if (existing) {
+            existing.lotes.push(...medicamento.lotes);
+        } else {
+            acc.push({ ...medicamento, lotes: [...medicamento.lotes] });
+        }
+        return acc;
+    }, []);
 
-    estoque.forEach((medicamento) => {
+    groupedMedicamentos.forEach((medicamento) => {
         // Cabeçalho do medicamento
         doc.setFontSize(10);
         const rectHeight = 8; // Altura do retângulo
@@ -158,7 +175,7 @@ const MedicamentoForm = () => {
         // Centralizar o texto à esquerda dentro do retângulo
         doc.setTextColor(0); // Cor do texto (preto)
         const nomeMedicamento = medicamento.nome || '';
-        doc.text(nomeMedicamento, leftMargin, rectY + 5); // Adiciona 5 para posicionar o texto no meio do retângulo
+        doc.text(nomeMedicamento, 10, rectY + 5); // Adiciona 5 para posicionar o texto no meio do retângulo
 
         y += rectHeight + 3; // Ajustar Y para a próxima seção (menos espaço abaixo do retângulo)
 
@@ -168,7 +185,7 @@ const MedicamentoForm = () => {
         let totalValor = 0; // Para somar o valor total
 
         medicamento.lotes.forEach((lote) => {
-            let x = leftMargin; // Reinicia a posição X para as informações do lote
+            let x = 10; // Reinicia a posição X para as informações do lote
 
             // Verificações para garantir que os valores são válidos
             const loteText = lote.lote || '';
@@ -176,91 +193,48 @@ const MedicamentoForm = () => {
             const tipoServicoText = medicamento.tipoServico || '';
             const tipoMedicamentoText = medicamento.tipoMedicamento || '';
             const quantidade = Number(lote.quantidade) || 0;
-            const valorLote = Number(lote.valor) || 0;
-            const laboratorioText = medicamento.laboratorio || '';
+            const valorLote = Number(lote.valor); // Corrigido para dividir por 100 aqui
+
+            // Calcular o valor total do lote
+            const valorTotalLote = valorLote * quantidade;
 
             // Desenhar informações centralizadas
             if (loteText) {
-                const loteLines = doc.splitTextToSize(loteText, colWidths.lote);
-                loteLines.forEach((line, index) => {
-                    const centerX = x + (colWidths.lote / 2);
-                    doc.text(line, centerX, y + (index * 5), { align: 'center' }); // Centraliza o texto
-                });
+                doc.text(`${loteText}`, x, y);
+                x += 30; // Atualiza x para a próxima coluna
             }
-            x += colWidths.lote; // Atualiza x para a próxima coluna
-
             if (validadeText) {
-                const validadeLines = doc.splitTextToSize(validadeText, colWidths.validade);
-                validadeLines.forEach((line, index) => {
-                    const centerX = x + (colWidths.validade / 2);
-                    doc.text(line, centerX, y + (index * 5), { align: 'center' });
-                });
+                doc.text(`${validadeText}`, x, y);
+                x += 30; // Atualiza x para a próxima coluna
             }
-            x += colWidths.validade; // Atualiza x para a próxima coluna
-
-            // Renderizar tipo de serviço
             if (tipoServicoText) {
-                const tipoServicoLines = doc.splitTextToSize(tipoServicoText, colWidths.tipoServico);
-                tipoServicoLines.forEach((line, index) => {
-                    const centerX = x + (colWidths.tipoServico / 2);
-                    doc.text(line, centerX, y + (index * 5), { align: 'center' });
-                });
+                doc.text(`${tipoServicoText}`, x, y);
+                x += 50; // Atualiza x para a próxima coluna
             }
-            x += colWidths.tipoServico; // Atualiza x para a próxima coluna
-
-            // Renderizar tipo de medicamento
             if (tipoMedicamentoText) {
-                const tipoMedicamentoLines = doc.splitTextToSize(tipoMedicamentoText, colWidths.tipoMedicamento);
-                tipoMedicamentoLines.forEach((line, index) => {
-                    const centerX = x + (colWidths.tipoMedicamento / 2);
-                    doc.text(line, centerX, y + (index * 5), { align: 'center' });
-                });
+                doc.text(`${tipoMedicamentoText}`, x, y);
+                x += 30; // Atualiza x para a próxima coluna
             }
-            x += colWidths.tipoMedicamento; // Atualiza x para a próxima coluna
-
-            // A quantidade agora é tratada como um número
-            const centerXQuantidade = x + (colWidths.quantidade / 2);
-            doc.text(quantidade.toString(), centerXQuantidade, y); // Centraliza a quantidade
+            doc.text(`${quantidade}`, x, y);
             totalQuantidade += quantidade; // Acumula a quantidade total
-            x += colWidths.quantidade; // Atualiza x para a próxima coluna
+            x += 30; // Atualiza x para a próxima coluna
+            doc.text(`${formatCurrency(valorTotalLote)}`, x, y); // Centraliza o valor
+            totalValor += valorTotalLote; // Acumula o valor total
 
-            // O valor do lote agora é tratado corretamente como número
-            const centerXValor = x + (colWidths.valor / 2);
-            doc.text(formatCurrency(valorLote), centerXValor, y); // Centraliza o valor
-            totalValor += valorLote; // Acumula o valor total
-            x += colWidths.valor; // Atualiza x para a próxima coluna
+            y += 5; // Ajustar posição y para o próximo lote
 
-            // Quebrar texto em várias linhas para o laboratório
-            if (laboratorioText) {
-                const laboratorioLines = doc.splitTextToSize(laboratorioText, colWidths.laboratorio);
-                laboratorioLines.forEach((line, index) => {
-                    const centerX = x + (colWidths.laboratorio / 2);
-                    doc.text(line, centerX, y + (index * 5), { align: 'center' });
-                });
+            // Verifica se a posição Y ultrapassa a altura da página
+            if (y + rectHeight + 3 > doc.internal.pageSize.getHeight() - bottomMargin) {
+                doc.addPage(); // Adiciona uma nova página
+                y = topMargin; // Reseta a posição Y para o início da nova página
             }
-
-            // Ajustar a posição Y
-            y += 3; // Ajustar posição y conforme o número de linhas mais longo
-            y += 3; // Espaçamento extra após cada lote
         });
 
         // Total de Quantidade e Valor após cada medicamento, alinhado à direita na tabela
         y += 3; // Espaçamento extra antes dos totais
-        const totalX = leftMargin + colWidths.lote + colWidths.validade + colWidths.tipoServico + 5; // X para o total
-
         doc.setFontSize(7);
-        // Centralizar o texto "Total"
-        const totalText = `Total:`;
-        const totalTextWidth = doc.getTextWidth(totalText);
-        doc.text(totalText, totalX + (colWidths.tipoServico / 2) - (totalTextWidth / 2), y); // Centraliza o texto "Total"
-
-        // Alinhar quantidade total
-        const quantidadeX = totalX + (colWidths.tipoServico + 10);
-        doc.text(`${totalQuantidade}`, quantidadeX, y); // Centraliza a quantidade total
-
-        // Alinhar valor total
-        const valorX = totalX + (colWidths.tipoServico + 35);
-        doc.text(`${formatCurrency(totalValor)}`, valorX, y); // Centraliza o valor total
+        doc.text(`Total Quantidade: ${totalQuantidade}`, 10, y); // Total de quantidade
+        doc.text(`Total Valor: ${formatCurrency(totalValor)}`, 100, y); // Total de valor
 
         y += 5; // Espaçamento extra após cada medicamento
     });
@@ -269,117 +243,109 @@ const MedicamentoForm = () => {
     doc.save('estoque_medicamentos.pdf');
   };
 
-  const importJSON = (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-        alert("Por favor, selecione um arquivo.");
-        return;
-    }
+  const validateForm = () => {
+    const newErrors = {};
     
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const data = JSON.parse(event.target.result);
-            // Verifique se data é um array e se contém objetos com a estrutura correta
-            if (Array.isArray(data) && data.every(item => item.nome && item.laboratorio && item.tipoServico && item.tipoMedicamento && item.lotes)) {
-                setMedicamentos(data);
-                localStorage.setItem('medicamentos', JSON.stringify(data)); // Salvar no localStorage
-            } else {
-                console.error("Os dados importados não estão no formato correto.");
-                alert("Os dados importados não estão no formato correto.");
-            }
-        } catch (error) {
-            console.error("Erro ao importar JSON:", error);
-            alert("Erro ao importar JSON. Verifique o formato do arquivo.");
-        }
-    };
-    reader.readAsText(file);
+    if (!nome) newErrors.nome = "O nome é obrigatório.";
+    if (!laboratorio) newErrors.laboratorio = "O laboratório é obrigatório.";
+    if (!tipoServico) newErrors.tipoServico = "Selecione um tipo de serviço.";
+    if (!tipoMedicamento) newErrors.tipoMedicamento = "Selecione um tipo de medicamento.";
+    if (!lote) newErrors.lote = "O lote é obrigatório.";
+    if (!quantidade || quantidade <= 0) newErrors.quantidade = "A quantidade deve ser maior que zero.";
+    if (!dataValidade) newErrors.dataValidade = "A data de validade é obrigatória.";
+    if (!valor || valor <= 0) newErrors.valor = "O valor deve ser maior que zero.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0; // Retorna true se não houver erros
   };
 
   return (
     <div>
+      {loading && <div className="loading-indicator">Carregando...</div>}
       <form onSubmit={handleSubmit}>
-        <input
-            type="text"
-            placeholder="Nome"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            required
-        />
-        <input
-            type="text"
-            placeholder="Laboratório"
-            value={laboratorio}
-            onChange={(e) => setLaboratorio(e.target.value)}
-            required
-        />
-        <select
-            value={tipoServico}
-            onChange={(e) => setTipoServico(e.target.value)}
-            required
-            aria-label="Tipo de Serviço" // Adicione um aria-label
-        >
-            <option value="">Selecione um tipo de serviço...</option>
-            <option value="ANEMIA FALCIFORME">ANEMIA FALCIFORME</option>
-            <option value="ANTIMICROBIANOS">ANTIMICROBIANOS</option>
-            {/* Adicione mais opções conforme necessário */}
+        <label htmlFor="nome">Nome</label>
+        <input type="text" id="nome" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
+        {errors.nome && <span className="error">{errors.nome}</span>}
+        
+        <label htmlFor="laboratorio">Laboratório</label>
+        <input type="text" id="laboratorio" placeholder="Laboratório" value={laboratorio} onChange={(e) => setLaboratorio(e.target.value)} required />
+        {errors.laboratorio && <span className="error">{errors.laboratorio}</span>}
+        
+        <label htmlFor="tipoServico">Tipo de Serviço</label>
+        <select id="tipoServico" value={tipoServico} onChange={(e) => setTipoServico(e.target.value)} required>
+          <option value="">Selecione um tipo de serviço...</option>
+          <option value="ANEMIA FALCIFORME">ANEMIA FALCIFORME</option>
+          <option value="ANTIMICROBIANOS">ANTIMICROBIANOS</option>
+          <option value="ASSISTÊNCIA FARMACÊUTICA">ASSISTÊNCIA FARMACÊUTICA</option>
+          <option value="ASSISTÊNCIA FARMACÊUTICA BÁSICA">ASSISTÊNCIA FARMACÊUTICA BÁSICA</option>
+          <option value="DIABETES">DIABETES</option>
+          <option value="HIPERTENSÃO">HIPERTENSÃO</option>
+          <option value="SAÚDE DA MULHER">SAÚDE DA MULHER</option>
+          <option value="SAÚDE MENTAL">SAÚDE MENTAL</option>
+          <option value="URGÊNCIA E EMERGÊNCIA">URGÊNCIA E EMERGÊNCIA</option>
         </select>
-        <select
-            value={tipoMedicamento}
-            onChange={(e) => setTipoMedicamento(e.target.value)}
-            required
-            aria-label="Tipo de Medicamento" // Adicione um aria-label
-        >
-            <option value="">Selecione um tipo de medicamento...</option>
-            <option value="ADESIVO">ADESIVO</option>
-            <option value="AMPOLA">AMPOLA</option>
-            {/* Adicione mais opções conforme necessário */}
+        {errors.tipoServico && <span className="error">{errors.tipoServico}</span>}
+        
+        <label htmlFor="tipoMedicamento">Tipo de Medicamento</label>
+        <select id="tipoMedicamento" value={tipoMedicamento} onChange={(e) => setTipoMedicamento(e.target.value)} required>
+          <option value="">Selecione um tipo de medicamento...</option>
+          <option value="ADESIVO">ADESIVO</option>
+          <option value="AMPOLA">AMPOLA</option>
+          <option value="BISNAGA">BISNAGA</option>
+          <option value="CAPSULA">CAPSULA</option>
+          <option value="CARTELA">CARTELA</option>
+          <option value="COMPRIMIDO">COMPRIMIDO</option>
+          <option value="CREME">CREME</option>
+          <option value="FRASCO">FRASCO</option>
+          <option value="FRASCO AMPOLA">FRASCO AMPOLA</option>
+          <option value="GEL">GEL</option>
+          <option value="GOTAS">GOTAS</option>
+          <option value="POMADA">POMADA</option>
+          <option value="SPRAY">SPRAY</option>
+          <option value="SUPOSITÓRIO">SUPOSITÓRIO</option>
+          <option value="XAROPE">XAROPE</option>
         </select>
-        <input
-            type="text"
-            placeholder="Lote"
-            value={lote}
-            onChange={(e) => setLote(e.target.value)}
-            required
-        />
-        <input
-            type="number"
-            placeholder="Quantidade"
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            required
-        />
-        <input
-            type="date"
-            placeholder="Data de Validade"
-            value={dataValidade}
-            onChange={(e) => setDataValidade(e.target.value)}
-            required
-        />
-        <input
-            type="text"
-            placeholder="Valor"
-            value={formatCurrency(valor / 100)} // Chama a função de formatação
-            onChange={handleValueChange}
-            required
-        />
+        {errors.tipoMedicamento && <span className="error">{errors.tipoMedicamento}</span>}
+        
+        <label htmlFor="lote">Lote</label>
+        <input type="text" id="lote" placeholder="Lote" value={lote} onChange={(e) => setLote(e.target.value)} required />
+        {errors.lote && <span className="error">{errors.lote}</span>}
+        
+        <label htmlFor="quantidade">Quantidade</label>
+        <input type="number" id="quantidade" placeholder="Quantidade" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} required />
+        {errors.quantidade && <span className="error">{errors.quantidade}</span>}
+        
+        <label htmlFor="dataValidade">Data de Validade</label>
+        <input type="date" id="dataValidade" placeholder="Data de Validade" value={dataValidade} onChange={(e) => setDataValidade(e.target.value)} required />
+        {errors.dataValidade && <span className="error">{errors.dataValidade}</span>}
+        
+        <label htmlFor="valor">Valor</label>
+        <input type="text" id="valor" placeholder="Valor" value={formatCurrency(valor / 100)} onChange={handleValueChange} required />
+        {errors.valor && <span className="error">{errors.valor}</span>}
+        
         <button type="submit">{editIndex !== null ? 'Atualizar Medicamento' : 'Adicionar Medicamento'}</button>
       </form>
 
-      {/* Botões para exportar e importar */}
-      <div className="export-buttons">
-        <button onClick={exportToJSON}>Exportar para JSON</button>
-        <button onClick={exportToPDF}>Exportar para PDF</button>
-        <label htmlFor="import-json" className="import-json-label">
-          <button type="button" onClick={() => document.getElementById('import-json').click()}>Importar de JSON</button>
-        </label>
+      {/* Campo de busca */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px' }}>
         <input
-          type="file"
-          id="import-json"
-          accept=".json"
-          onChange={importJSON}
-          style={{ display: 'none' }} // Esconde o input de arquivo
+          type="text"
+          placeholder="Buscar Medicamento"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input" // Adiciona a classe de estilo
         />
+        <button className="search-button" onClick={() => {/* Ação de busca, se necessário */}}>
+          Buscar
+        </button>
+      </div>
+
+      {/* Botões de Exportação e Importação */}
+      <div className="export-buttons">
+        <button onClick={exportJSON}>Exportar Medicamentos</button>
+        <input type="file" accept=".json" onChange={importJSON} style={{ display: 'none' }} id="file-input" />
+        <button onClick={() => document.getElementById('file-input').click()} className="import-button">Importar Medicamentos</button>
+        <button onClick={exportToPDF}>Exportar PDF</button> {/* Botão para exportar PDF */}
       </div>
 
       {/* Tabela para exibir os medicamentos */}
@@ -399,36 +365,41 @@ const MedicamentoForm = () => {
             </tr>
           </thead>
           <tbody>
-              {medicamentos && medicamentos.length > 0 ? (
-                medicamentos.map((medicamento, index) => {
-                  console.log('Medicamento na tabela:', medicamento); // Log do medicamento
-                  return (
-                    <tr key={index}>
-                      <td>{medicamento.nome}</td>
-                      <td>{medicamento.laboratorio || 'N/A'}</td>
-                      <td>{medicamento.tipoServico || 'N/A'}</td>
-                      <td>{medicamento.tipoMedicamento || 'N/A'}</td>
-                      <td>{medicamento.lotes.map(lote => lote.lote).join(', ')}</td>
-                      <td>{medicamento.lotes.map(lote => lote.quantidade).join(', ')}</td>
-                      <td>{medicamento.lotes.map(lote => lote.dataValidade).join(', ')}</td>
-                      <td>{medicamento.lotes.map(lote => formatCurrency(lote.valor)).join(', ')}</td>
-                      <td>
-                        <button onClick={() => handleEdit(index)}>Editar</button>
-                        <button onClick={() => handleDelete(index)}>Excluir</button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="9">Nenhum medicamento encontrado.</td>
-                </tr>
-              )}
+            {medicamentos && medicamentos.length > 0 ? (
+              medicamentos
+                .filter((medicamento) =>
+                  medicamento.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  medicamento.laboratorio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  medicamento.tipoServico.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  medicamento.tipoMedicamento.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .sort((a, b) => a.nome.localeCompare(b.nome)) // Ordena os medicamentos em ordem alfabética
+                .map((medicamento, index) => (
+                  <tr key={index}>
+                    <td>{medicamento.nome}</td>
+                    <td>{medicamento.laboratorio || 'N/A'}</td>
+                    <td>{medicamento.tipoServico || 'N/A'}</td>
+                    <td>{medicamento.tipoMedicamento || 'N/A'}</td>
+                    <td>{medicamento.lotes.map(lote => lote.lote).join(', ')}</td>
+                    <td>{medicamento.lotes.map(lote => lote.quantidade).join(', ')}</td>
+                    <td>{medicamento.lotes.map(lote => lote.dataValidade).join(', ')}</td>
+                    <td>{medicamento.lotes.map(lote => formatCurrency(lote.valor)).join(', ')}</td>
+                    <td>
+                      <button onClick={() => handleEdit(index)}>Editar</button>
+                      <button onClick={() => handleDelete(index)}>Excluir</button>
+                    </td>
+                  </tr>
+                ))
+            ) : (
+              <tr>
+                <td colSpan="9">Nenhum medicamento encontrado.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
     </div>
   );
-};
+});
 
 export default MedicamentoForm;
