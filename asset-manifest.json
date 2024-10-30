@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/estoqueProject2/static/css/main.d3d17300.css",
-    "main.js": "/estoqueProject2/static/js/main.9567880e.js",
-    "static/js/116.a466394c.chunk.js": "/estoqueProject2/static/js/116.a466394c.chunk.js",
+    "main.js": "/estoqueProject2/static/js/main.adb10912.js",
+    "static/js/116.4ffd1aab.chunk.js": "/estoqueProject2/static/js/116.4ffd1aab.chunk.js",
     "static/js/453.c36679aa.chunk.js": "/estoqueProject2/static/js/453.c36679aa.chunk.js",
     "static/js/239.d73555b0.chunk.js": "/estoqueProject2/static/js/239.d73555b0.chunk.js",
     "static/js/213.be152a4e.chunk.js": "/estoqueProject2/static/js/213.be152a4e.chunk.js",
@@ -10,8 +10,8 @@
     "static/js/557.d1c88cf9.chunk.js": "/estoqueProject2/static/js/557.d1c88cf9.chunk.js",
     "index.html": "/estoqueProject2/index.html",
     "main.d3d17300.css.map": "/estoqueProject2/static/css/main.d3d17300.css.map",
-    "main.9567880e.js.map": "/estoqueProject2/static/js/main.9567880e.js.map",
-    "116.a466394c.chunk.js.map": "/estoqueProject2/static/js/116.a466394c.chunk.js.map",
+    "main.adb10912.js.map": "/estoqueProject2/static/js/main.adb10912.js.map",
+    "116.4ffd1aab.chunk.js.map": "/estoqueProject2/static/js/116.4ffd1aab.chunk.js.map",
     "453.c36679aa.chunk.js.map": "/estoqueProject2/static/js/453.c36679aa.chunk.js.map",
     "239.d73555b0.chunk.js.map": "/estoqueProject2/static/js/239.d73555b0.chunk.js.map",
     "213.be152a4e.chunk.js.map": "/estoqueProject2/static/js/213.be152a4e.chunk.js.map",
@@ -20,6 +20,6 @@
   },
   "entrypoints": [
     "static/css/main.d3d17300.css",
-    "static/js/main.9567880e.js"
+    "static/js/main.adb10912.js"
   ]
 }
